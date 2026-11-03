@@ -2,7 +2,7 @@
 
 Status: utkast för granskning. Ingen implementation startas enbart för att denna fil finns.
 Datum: 2026-10-30.
-Senast uppdaterad: 2026-11-02.
+Senast uppdaterad: 2026-11-03.
 
 ## 1. Syfte och källa
 
@@ -28,7 +28,7 @@ Canvas inför inlämning.
 - Studenten ska förstå förändringen innan arbetet går vidare till nästa del.
 - Koppla arbetet till så många relevanta redovisningsfrågor som möjligt.
 
-### Tekniskt upplägg - beslutad C-generator och återstående förslag
+### Tekniskt upplägg - beslutad C-generator
 
 Skelettet har redan Compose för gränssnittet, en ViewModel som håller spelstatus
 och ett repository för high score. ViewModel anropar i dag NBackHelper, som i sin
@@ -39,11 +39,10 @@ C-generatorn behöver anpassas till den godkända metoden med exakt sex matcher;
 språkvalet innebär inte att dess nuvarande algoritm redan uppfyller kraven.
 Förslaget att ersätta generatorn med Kotlin har därmed valts bort.
 
-Kotlin och Compose används fortsatt för Android-delen. Exakt ansvarsfördelning
-för matchkontroll, poäng, timer, ljudresurser och observerbart tillstånd ska
-förankras före berörd implementation. Behåll skelettets användbara struktur,
-håll reglerna testbara och inför bara klasser eller gränssnitt med konkret nytta.
-Större ändringar av C/JNI-kontraktet beslutas enligt AGENTS.md. Befintliga
+Kotlin och Compose används fortsatt för Android-delen. Ansvarsfördelning,
+timer, ljud, navigation, tillstånd, C/JNI-kontrakt och tester är beslutade,
+se avsnitt 4.2. Behåll skelettets användbara struktur, håll reglerna
+testbara och inför bara klasser eller gränssnitt med konkret nytta. Befintliga
 C-filer och bygginställningar tas inte bort som orelaterad städning.
 
 Alternativet att återföra hela den tidigare prototypen är snabbare som start,
@@ -162,16 +161,12 @@ Godkända projektval är inte nya lärarkrav och innebär inte att beteendet är
   exempelvis vid rotation. Stoppa rundans timer och pågående uppläsning.
   Rundan återupptas inte automatiskt och det avbrutna resultatet sparas inte.
 
-### 4.2 Förslag som ännu inte är godkända
+### 4.2 Beslut i NB-01
 
-- Inställningarna visas men behöver inte kunna redigeras på grundnivån.
-- Upprepa sekvenstester med flera fasta slumpfrön så att testet både varierar
-  sekvenserna och går att reproducera.
-- Använd befintlig DataStore-lagring för det gemensamma high score som godkänts.
-- Initiera ljudmotorn innan ljudspel tillåts, spela bara efter en användarhandling,
-  och frigör ljudresurser när de inte längre behövs.
-- Om uppläsning inte är tillgänglig: visa ett begripligt felmeddelande och låt
-  spelaren använda visuellt läge. Låtsas inte att ett tyst ljudspel fungerar.
+Valen finns i `tasks/decisions-nb01.md`.
+
+Fortfarande förslag:
+
 - Ingen server, inloggning, analysinsamling eller nätverksfunktion behövs.
 
 ### 4.3 Varifrån valen kommer
@@ -187,7 +182,6 @@ Godkända projektval är inte nya lärarkrav och innebär inte att beteendet är
 - Avbrott vid bakgrundsläge och återskapad spelskärm började som assistentens
   förslag och har nu godkänts. Det preciserar beteenden utöver labbens uttryckliga
   krav på att stoppa timern när rundan slutar eller spelaren lämnar spelskärmen.
-- Detaljerna för ljudmotorns resurshantering är fortfarande förslag.
 
 ## 5. Avgränsning och oklarhet i labbtexten
 
