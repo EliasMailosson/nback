@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import mobappdev.example.nback_cimpl.GameApplication
+import mobappdev.example.nback_cimpl.NBackGeneration
 import mobappdev.example.nback_cimpl.NBackHelper
 import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
 
@@ -78,8 +79,16 @@ class GameVM(
     override fun startGame() {
         job?.cancel()  // Cancel any existing game loop
 
-        // Get the events from our C-model (returns IntArray, so we need to convert to Array<Int>)
-        events = nBackHelper.generateNBackString(10, 9, 30, nBack).toList().toTypedArray()  // Todo Higher Grade: currently the size etc. are hardcoded, make these based on user input
+        // 20 events, 2-back and exactly 6 matches. Values are 1..9.
+        // Todo Higher Grade: currently the size etc. are hardcoded, make these based on user input
+        val generated = nBackHelper.generateNBackString(20, 9, nBack, 6, System.currentTimeMillis().toInt())
+        events = when (generated) {
+            is NBackGeneration.Ok -> generated.sequence.toTypedArray()
+            is NBackGeneration.Error -> {
+                Log.d("GameVM", "Could not generate sequence: ${generated.name}")
+                emptyArray()
+            }
+        }
         Log.d("GameVM", "The following sequence was generated: ${events.contentToString()}")
 
         job = viewModelScope.launch {

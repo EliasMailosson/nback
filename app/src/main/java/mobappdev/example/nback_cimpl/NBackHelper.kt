@@ -12,15 +12,47 @@ package mobappdev.example.nback_cimpl
  *
  */
 
+/**
+ * A generated sequence, or one named error from the C generator.
+ * The error names match the NBACK_ERROR_* texts in nback.h.
+ */
+sealed class NBackGeneration {
+    class Ok(val sequence: IntArray) : NBackGeneration()
+    class Error(val name: String) : NBackGeneration()
 
+    companion object {
+        const val INVALID_LENGTH = "INVALID_LENGTH"
+        const val INVALID_STIMULI = "INVALID_STIMULI"
+        const val INVALID_N = "INVALID_N"
+        const val INVALID_MATCH_COUNT = "INVALID_MATCH_COUNT"
+        const val ALLOCATION = "ALLOCATION"
+
+        @JvmStatic
+        fun ok(sequence: IntArray): NBackGeneration = Ok(sequence)
+
+        @JvmStatic
+        fun error(name: String): NBackGeneration = Error(name)
+    }
+}
 
 class NBackHelper {
 
-    // Native function declaration (calls the C function)
-    private external fun createNBackString(size: Int, combinations: Int, percentMatch: Int, nBack: Int): IntArray
+    private external fun createNBackString(
+        size: Int,
+        stimuli: Int,
+        nBack: Int,
+        matches: Int,
+        seed: Int
+    ): NBackGeneration
 
-    fun generateNBackString(size: Int, combinations: Int, percentMatch: Int, nBack: Int): IntArray {
-        return createNBackString(size, combinations, percentMatch, nBack)
+    fun generateNBackString(
+        size: Int,
+        stimuli: Int,
+        nBack: Int,
+        matches: Int,
+        seed: Int
+    ): NBackGeneration {
+        return createNBackString(size, stimuli, nBack, matches, seed)
     }
 
     companion object {

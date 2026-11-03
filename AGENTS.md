@@ -66,6 +66,8 @@ testa och förklara på redovisningen. Användarens aktuella instruktioner styr 
   använd en egen kortlivad branch och skapa en PR till överenskommet repository och basgren.
   Följ uppdragets tillstånd för commits, push och publicering; återanvänd redan givna
   godkännanden inom samma omfattning. Denna fil ensam ger inga externa behörigheter.
+- Commit-meddelanden följer Conventional Commits på engelska, till exempel
+  `feat(nb02): ...`, `docs: ...` och `test: ...`.
 - Håll PR:en till en sammanhängande ändring. Länka issuen och beskriv beteendet,
   viktiga beslut, faktiska testresultat, manuell provkörning och kvarvarande begränsningar.
 - En annan bot eller agent ska granska PR:en före användarens slutliga granskning.
