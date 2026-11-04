@@ -5,7 +5,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import mobappdev.example.nback_cimpl.NBackGeneration
 import mobappdev.example.nback_cimpl.game.NBackRound
@@ -113,7 +112,7 @@ class RoundResultTest {
             currentCoroutineContext().ensureActive()
         }
         vm = GameVM(
-            highscore = MutableStateFlow(0),
+            highScores = MemoryHighScores(),
             generator = SequenceGenerator { _, _, _, _, _ -> NBackGeneration.Ok(events.toIntArray()) },
             pause = pause,
             gameScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
