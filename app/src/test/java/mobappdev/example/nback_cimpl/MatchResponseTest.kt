@@ -8,6 +8,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
 import mobappdev.example.nback_cimpl.NBackGeneration
+import mobappdev.example.nback_cimpl.audio.SpeechFactory
 import mobappdev.example.nback_cimpl.game.BasicRound
 import mobappdev.example.nback_cimpl.game.NBackRound
 import mobappdev.example.nback_cimpl.game.Pause
@@ -161,6 +162,7 @@ private fun gameVm(events: List<Int>, pause: Pause): GameVM {
         highScores = MemoryHighScores(),
         generator = SequenceGenerator { _, _, _, _, _ -> NBackGeneration.Ok(events.toIntArray()) },
         pause = pause,
+        speechFactory = SpeechFactory { SilentSpeech },
         gameScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
     )
 }

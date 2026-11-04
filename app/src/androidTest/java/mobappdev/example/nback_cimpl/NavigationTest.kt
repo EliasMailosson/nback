@@ -1,7 +1,7 @@
 package mobappdev.example.nback_cimpl
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -23,8 +23,7 @@ class NavigationTest {
         rule.onNodeWithText("20 händelser").assertIsDisplayed()
         rule.onNodeWithText("2 sekunder per händelse").assertIsDisplayed()
         rule.onNodeWithText("Rekord:", substring = true).assertIsDisplayed()
-        rule.onNodeWithText("Ljud").assertIsNotEnabled()
-        rule.onNodeWithText("Inte tillgängligt ännu").assertIsDisplayed()
+        rule.onNodeWithText("Ljud").assertIsEnabled()
 
         rule.onNodeWithText("Visuellt").performClick()
         rule.onNodeWithText("Redo").assertIsDisplayed()

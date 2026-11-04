@@ -15,6 +15,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import mobappdev.example.nback_cimpl.GameApplication
+import mobappdev.example.nback_cimpl.audio.AndroidLetterSpeech
+import mobappdev.example.nback_cimpl.audio.LetterSpeech
+import mobappdev.example.nback_cimpl.audio.SpeechFactory
+import mobappdev.example.nback_cimpl.audio.SpeechReady
 import mobappdev.example.nback_cimpl.NBackGeneration
 import mobappdev.example.nback_cimpl.data.HighScoreStore
 import mobappdev.example.nback_cimpl.data.SaveResult
@@ -54,6 +58,7 @@ interface GameViewModel {
     fun startGame()
     fun abortRound()
     fun enterGameScreen()
+    fun prepareAudio()
 
     fun checkMatch()
 }
@@ -62,6 +67,7 @@ class GameVM(
     private val highScores: HighScoreStore,
     private val generator: SequenceGenerator = NativeSequenceGenerator(),
     private val pause: Pause = RealPause(),
+    private val speechFactory: SpeechFactory,
     private val gameScope: CoroutineScope? = null,
 ) : GameViewModel, ViewModel() {
     private val scope: CoroutineScope = gameScope ?: viewModelScope
@@ -77,6 +83,7 @@ class GameVM(
     override val nBack: Int = BasicRound.N_BACK
 
     private var round = NBackRound(emptyList())
+    private var speech: LetterSpeech? = null
     private var job: Job? = null
     private var roundToken = 0
     private var note: String? = null
@@ -111,6 +118,7 @@ class GameVM(
     }
 
     override fun abortRound() {
+        speech?.stop()
         if (round.phase != RoundPhase.Playing) {
             job?.cancel()
             job = null
@@ -134,6 +142,24 @@ class GameVM(
         round = NBackRound(emptyList())
         note = null
         publish()
+    }
+
+    override fun prepareAudio() {
+        if (_gameState.value.phase == RoundPhase.Playing) return
+        scope.launch {
+            val speaker = speech ?: speechFactory.create().also { speech = it }
+            when (speaker.prepare()) {
+                SpeechReady.Missing -> {
+                    speaker.shutdown()
+                    if (speech === speaker) speech = null
+                    note = "Ingen röst är tillgänglig. Välj visuellt läge."
+                }
+                SpeechReady.Ready -> {
+                    note = "Rösten är redo"
+                }
+            }
+            _gameState.value = _gameState.value.copy(message = note)
+        }
     }
 
     override fun checkMatch() {
@@ -174,6 +200,7 @@ class GameVM(
                 }
             } finally {
                 if (token == roundToken && round.phase == RoundPhase.Playing) {
+                    speech?.stop()
                     round = round.abort()
                     publish()
                 }
@@ -218,7 +245,10 @@ class GameVM(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application = (this[APPLICATION_KEY] as GameApplication)
-                GameVM(application.userPreferencesRespository)
+                GameVM(
+                    highScores = application.userPreferencesRespository,
+                    speechFactory = SpeechFactory { AndroidLetterSpeech(application) }
+                )
             }
         }
     }
@@ -227,6 +257,12 @@ class GameVM(
         scope.launch {
             highScores.highscore.collect { _highscore.value = it }
         }
+    }
+
+    override fun onCleared() {
+        job?.cancel()
+        speech?.shutdown()
+        speech = null
     }
 }
 
@@ -271,6 +307,9 @@ class FakeVM: GameViewModel{
     }
 
     override fun enterGameScreen() {
+    }
+
+    override fun prepareAudio() {
     }
 
     override fun checkMatch() {

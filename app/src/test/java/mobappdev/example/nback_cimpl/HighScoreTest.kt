@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import mobappdev.example.nback_cimpl.NBackGeneration
+import mobappdev.example.nback_cimpl.audio.SpeechFactory
 import mobappdev.example.nback_cimpl.data.HighScoreStore
 import mobappdev.example.nback_cimpl.data.SaveResult
 import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
@@ -128,6 +129,7 @@ class HighScoreTest {
             highScores = store,
             generator = generator,
             pause = pause,
+            speechFactory = SpeechFactory { SilentSpeech },
             gameScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         )
     }

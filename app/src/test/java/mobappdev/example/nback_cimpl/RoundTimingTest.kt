@@ -8,6 +8,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import mobappdev.example.nback_cimpl.NBackGeneration
+import mobappdev.example.nback_cimpl.audio.SpeechFactory
 import mobappdev.example.nback_cimpl.game.BasicRound
 import mobappdev.example.nback_cimpl.game.NBackRound
 import mobappdev.example.nback_cimpl.game.Pause
@@ -171,6 +172,7 @@ class RoundTimingTest {
             highScores = MemoryHighScores(),
             generator = generator,
             pause = pause,
+            speechFactory = SpeechFactory { SilentSpeech },
             gameScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         )
     }

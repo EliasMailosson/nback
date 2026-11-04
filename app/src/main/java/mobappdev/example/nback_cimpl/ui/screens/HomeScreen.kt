@@ -28,7 +28,7 @@ import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
 
 /**
  * Start screen. Shows the fixed round and the saved record.
- * Visual mode opens the game. Audio stays closed until the letter round exists.
+ * Visual mode opens the game. Audio checks that a voice exists and does not start a round.
  */
 
 @Composable
@@ -37,6 +37,7 @@ fun HomeScreen(
     onStartVisual: () -> Unit
 ) {
     val highscore by vm.highscore.collectAsState()
+    val state by vm.gameState.collectAsState()
 
     Scaffold { padding ->
         Column(
@@ -90,7 +91,7 @@ fun HomeScreen(
                         }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Button(onClick = {}, enabled = false) {
+                        Button(onClick = vm::prepareAudio) {
                             Icon(
                                 painter = painterResource(id = R.drawable.sound_on),
                                 contentDescription = null,
@@ -101,13 +102,14 @@ fun HomeScreen(
                                 text = "Ljud"
                             )
                         }
-                        Text(
-                            modifier = Modifier.padding(top = 8.dp),
-                            text = "Inte tillgängligt ännu",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
                     }
                 }
+            }
+            if (state.message != null) {
+                Text(
+                    text = state.message ?: "",
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         }
     }
