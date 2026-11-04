@@ -28,13 +28,14 @@ import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
 
 /**
  * Start screen. Shows the fixed round and the saved record.
- * Visual mode opens the game. Audio checks that a voice exists and does not start a round.
+ * Visual mode and audio mode both open the game. A missing voice is reported when the audio round starts.
  */
 
 @Composable
 fun HomeScreen(
     vm: GameViewModel,
-    onStartVisual: () -> Unit
+    onStartVisual: () -> Unit,
+    onStartAudio: () -> Unit
 ) {
     val highscore by vm.highscore.collectAsState()
     val state by vm.gameState.collectAsState()
@@ -91,7 +92,7 @@ fun HomeScreen(
                         }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Button(onClick = vm::prepareAudio) {
+                        Button(onClick = onStartAudio) {
                             Icon(
                                 painter = painterResource(id = R.drawable.sound_on),
                                 contentDescription = null,
@@ -119,6 +120,6 @@ fun HomeScreen(
 @Composable
 fun HomeScreenPreview() {
     Surface {
-        HomeScreen(vm = FakeVM(), onStartVisual = {})
+        HomeScreen(vm = FakeVM(), onStartVisual = {}, onStartAudio = {})
     }
 }

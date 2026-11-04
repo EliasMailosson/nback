@@ -31,10 +31,10 @@ class RoundTimingTest {
         seen += started
 
         var latestRound = started
-        val finished = playFrom(started, pause, latest = { latestRound }) {
+        val finished = playFrom(started, pause, latest = { latestRound }, publish = {
             latestRound = it
             seen += it
-        }
+        })
         seen += finished
 
         assertEquals(RoundPhase.Finished, seen.last().phase)

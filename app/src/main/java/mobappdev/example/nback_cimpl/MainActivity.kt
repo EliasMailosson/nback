@@ -50,6 +50,13 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(GAME_ROUTE) {
                                         launchSingleTop = true
                                     }
+                                },
+                                onStartAudio = {
+                                    gameViewModel.setGameType(GameType.Audio)
+                                    gameViewModel.enterGameScreen()
+                                    navController.navigate(GAME_ROUTE) {
+                                        launchSingleTop = true
+                                    }
                                 }
                             )
                         }
