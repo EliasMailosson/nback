@@ -127,6 +127,25 @@ class AudioRoundTest {
     }
 
     @Test
+    fun abortingAudioStopsSpeechAndDoesNotSave() {
+        val store = MemoryHighScores(start = 3)
+        val speech = CountingSpeech()
+        val vm = viewModel(speech, List(BasicRound.EVENT_COUNT) { 1 }, StuckPause(), store)
+
+        vm.setGameType(GameType.Audio)
+        vm.startGame()
+        assertEquals(RoundPhase.Playing, vm.gameState.value.phase)
+        assertEquals(listOf("A"), speech.spoken)
+
+        vm.abortRound()
+
+        assertEquals(RoundPhase.Aborted, vm.gameState.value.phase)
+        assertTrue(store.results.isEmpty())
+        assertEquals(3, vm.highscore.value)
+        assertEquals(1, speech.stops)
+    }
+
+    @Test
     fun visualModeDoesNotSpeak() {
         val speech = CountingSpeech()
         val vm = viewModel(speech, List(BasicRound.EVENT_COUNT) { 3 })
@@ -172,6 +191,12 @@ private class CountingSpeech(var ready: SpeechReady = SpeechReady.Ready) : Lette
     }
 
     override fun shutdown() = Unit
+}
+
+private class StuckPause : Pause {
+    override suspend fun wait(millis: Long) {
+        kotlinx.coroutines.suspendCancellableCoroutine<Unit> { }
+    }
 }
 
 private class QuietPause : Pause {
