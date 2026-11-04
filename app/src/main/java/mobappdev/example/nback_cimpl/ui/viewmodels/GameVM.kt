@@ -19,6 +19,7 @@ import mobappdev.example.nback_cimpl.game.BasicRound
 import mobappdev.example.nback_cimpl.game.NBackRound
 import mobappdev.example.nback_cimpl.game.NativeSequenceGenerator
 import mobappdev.example.nback_cimpl.game.Pause
+import mobappdev.example.nback_cimpl.game.PressFeedback
 import mobappdev.example.nback_cimpl.game.RealPause
 import mobappdev.example.nback_cimpl.game.RoundPhase
 import mobappdev.example.nback_cimpl.game.SequenceGenerator
@@ -193,6 +194,7 @@ class GameVM(
             wrongPresses = round.wrongPresses,
             missedMatches = round.missedMatches,
             score = round.score,
+            feedback = round.feedback,
             message = note,
         )
     }
@@ -232,6 +234,7 @@ data class GameState(
     val wrongPresses: Int = 0,
     val missedMatches: Int = 0,
     val score: Int = 0,
+    val feedback: PressFeedback = PressFeedback.None,
     val message: String? = null,
 )
 

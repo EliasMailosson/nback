@@ -13,6 +13,11 @@ enum class RoundPhase {
     Aborted,
 }
 
+enum class PressFeedback {
+    None,
+    Wrong,
+}
+
 /** Fixed basic-level round. The same numbers are shown on the start screen. */
 object BasicRound {
     const val N_BACK = 2
@@ -39,6 +44,7 @@ data class NBackRound(
     val correctPresses: Int = 0,
     val wrongPresses: Int = 0,
     val missedMatches: Int = 0,
+    val feedback: PressFeedback = PressFeedback.None,
 ) {
     val score: Int
         get() = (correctPresses - wrongPresses).coerceAtLeast(0)
@@ -65,6 +71,7 @@ data class NBackRound(
             correctPresses = 0,
             wrongPresses = 0,
             missedMatches = 0,
+            feedback = PressFeedback.None,
         )
     }
 
@@ -81,9 +88,9 @@ data class NBackRound(
     fun press(): NBackRound {
         if (phase != RoundPhase.Playing || index < nBack || answered) return this
         return if (isMatch()) {
-            copy(answered = true, correctPresses = correctPresses + 1)
+            copy(answered = true, correctPresses = correctPresses + 1, feedback = PressFeedback.None)
         } else {
-            copy(answered = true, wrongPresses = wrongPresses + 1)
+            copy(answered = true, wrongPresses = wrongPresses + 1, feedback = PressFeedback.Wrong)
         }
     }
 
@@ -98,20 +105,26 @@ data class NBackRound(
         val missed = missedMatches + if (isMatch() && !answered) 1 else 0
         val next = index + 1
         return if (next >= events.size) {
-            copy(phase = RoundPhase.Finished, stimulusVisible = false, missedMatches = missed)
+            copy(
+                phase = RoundPhase.Finished,
+                stimulusVisible = false,
+                missedMatches = missed,
+                feedback = PressFeedback.None,
+            )
         } else {
             copy(
                 index = next,
                 stimulusVisible = true,
                 answered = false,
                 missedMatches = missed,
+                feedback = PressFeedback.None,
             )
         }
     }
 
     fun abort(): NBackRound {
         if (phase != RoundPhase.Playing) return this
-        return copy(phase = RoundPhase.Aborted, stimulusVisible = false)
+        return copy(phase = RoundPhase.Aborted, stimulusVisible = false, feedback = PressFeedback.None)
     }
 }
 
