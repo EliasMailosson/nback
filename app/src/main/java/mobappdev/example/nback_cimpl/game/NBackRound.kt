@@ -38,7 +38,10 @@ data class NBackRound(
     val answered: Boolean = false,
     val correctPresses: Int = 0,
     val wrongPresses: Int = 0,
+    val missedMatches: Int = 0,
 ) {
+    val score: Int
+        get() = (correctPresses - wrongPresses).coerceAtLeast(0)
     val eventCount: Int get() = events.size
 
     /** 1-based number while a round has started. 0 before the first event. */
@@ -61,6 +64,7 @@ data class NBackRound(
             answered = false,
             correctPresses = 0,
             wrongPresses = 0,
+            missedMatches = 0,
         )
     }
 
@@ -91,11 +95,17 @@ data class NBackRound(
     /** Ends the response window. The next event starts, or the round is finished. */
     fun closeEvent(): NBackRound {
         if (phase != RoundPhase.Playing) return this
+        val missed = missedMatches + if (isMatch() && !answered) 1 else 0
         val next = index + 1
         return if (next >= events.size) {
-            copy(phase = RoundPhase.Finished, stimulusVisible = false)
+            copy(phase = RoundPhase.Finished, stimulusVisible = false, missedMatches = missed)
         } else {
-            copy(index = next, stimulusVisible = true, answered = false)
+            copy(
+                index = next,
+                stimulusVisible = true,
+                answered = false,
+                missedMatches = missed,
+            )
         }
     }
 

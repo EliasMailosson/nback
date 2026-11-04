@@ -43,7 +43,6 @@ import mobappdev.example.nback_cimpl.game.playFrom
 
 interface GameViewModel {
     val gameState: StateFlow<GameState>
-    val score: StateFlow<Int>
     val highscore: StateFlow<Int>
     val nBack: Int
 
@@ -66,10 +65,6 @@ class GameVM(
     private val _gameState = MutableStateFlow(GameState())
     override val gameState: StateFlow<GameState>
         get() = _gameState.asStateFlow()
-
-    private val _score = MutableStateFlow(0)
-    override val score: StateFlow<Int>
-        get() = _score
 
     private val _highscore = MutableStateFlow(0)
     override val highscore: StateFlow<Int>
@@ -195,6 +190,9 @@ class GameVM(
             stimulusVisible = round.stimulusVisible,
             answered = round.answered,
             correctPresses = round.correctPresses,
+            wrongPresses = round.wrongPresses,
+            missedMatches = round.missedMatches,
+            score = round.score,
             message = note,
         )
     }
@@ -231,14 +229,15 @@ data class GameState(
     val stimulusVisible: Boolean = false,
     val answered: Boolean = false,
     val correctPresses: Int = 0,
+    val wrongPresses: Int = 0,
+    val missedMatches: Int = 0,
+    val score: Int = 0,
     val message: String? = null,
 )
 
 class FakeVM: GameViewModel{
     override val gameState: StateFlow<GameState>
         get() = MutableStateFlow(GameState()).asStateFlow()
-    override val score: StateFlow<Int>
-        get() = MutableStateFlow(2).asStateFlow()
     override val highscore: StateFlow<Int>
         get() = MutableStateFlow(42).asStateFlow()
     override val nBack: Int
