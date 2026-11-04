@@ -3,8 +3,11 @@ package mobappdev.example.nback_cimpl.ui.screens
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -60,8 +63,9 @@ fun GameScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Button(onClick = onLeave) {
@@ -96,9 +100,17 @@ fun GameScreen(
             val canPress = state.phase == RoundPhase.Playing &&
                 !state.answered &&
                 state.eventNumber > vm.nBack
-            Button(onClick = vm::checkMatch, enabled = canPress) {
+            Button(
+                onClick = vm::checkMatch,
+                enabled = canPress,
+                modifier = Modifier.defaultMinSize(minWidth = 160.dp)
+            ) {
                 Text("Match")
             }
+            Text(
+                text = matchHint(state.phase, state.eventNumber, vm.nBack, state.answered),
+                style = MaterialTheme.typography.bodyLarge
+            )
             WrongPressFeedback(wrong = state.feedback == PressFeedback.Wrong)
             if (state.message != null) {
                 Text(text = state.message ?: "", style = MaterialTheme.typography.bodyLarge)
@@ -137,6 +149,20 @@ private fun WrongPressFeedback(wrong: Boolean) {
         style = MaterialTheme.typography.titleLarge,
         modifier = Modifier.scale(scale)
     )
+}
+
+internal fun matchHint(
+    phase: RoundPhase,
+    eventNumber: Int,
+    nBack: Int,
+    answered: Boolean,
+): String {
+    return when {
+        phase != RoundPhase.Playing -> ""
+        eventNumber <= nBack -> "Uppvärmning"
+        answered -> "Svar registrerat"
+        else -> "Tryck om det är en match"
+    }
 }
 
 private fun modeLabel(gameType: GameType): String {
