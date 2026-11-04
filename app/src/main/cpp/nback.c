@@ -1,7 +1,4 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
-#include <jni.h>
 #include "nback.h"
 
 #define CONTENT_MAX_SIZE 100
@@ -11,123 +8,111 @@ struct nback_type {
     int size;
 };
 
-// Function to fill in a match (value and corresponding nBackString elements
-void fillInAMatch(int nBackString[], int size, int combinations, int nback);
-
-// Function to fill in all empty elements into nBackString
-void fillInAllEmpty(int nBackString[], int size, int combinations, int nback);
-
-/**
- * Function to create N-back string
- * @param nBackString   Array to write the string to
- * @param size          length of the wanted array
- * @param combinations  number of combinations we want (e.g. 3: uses numbers 1-2-3 for the positions)
- * @param matchPercentage  percentage of matches we want to have
- * @param nback         number of how many positions we want between the matching positions (e.g. 3; 1-2-3-1 is a match)
- */
-void createNBackString(int nBackString[], int size, int combinations, int matchPercentage, int nback);
-
-Nback create(int size, int combinations, int matchPercentage, int nback){
-    // Generate the array to save positions to
-    Nback s = malloc(sizeof(struct nback_type));
-    s->size = size;
-    createNBackString(s->content, size, combinations, matchPercentage, nback);
-    return s;
+/* Next value from the seed. The low bits of this step alternate, so the
+   returned value keeps the higher bits. The same seed still gives the same series. */
+static unsigned int next_from_seed(unsigned int *seed) {
+    *seed = (*seed * 1664525u) + 1013904223u;
+    return (*seed >> 16) & 0x7FFFu;
 }
 
-int getIndexOf(Nback s, int i){
-    return s->content[i];
-}
-
-
-void createNBackString(int nBackString[], int size, int combinations, int matchPercentage, int nback){
-    // Seed the random number generator
-    srand((unsigned)time(NULL));
-
-    // Initialize all elements in nBackString to 0
-    for(int i = 0; i<size; i++){
-        nBackString[i] = 0;
+static const char *check_input(int size, int stimuli, int n, int matches) {
+    if (size < 1 || size > CONTENT_MAX_SIZE) {
+        return NBACK_ERROR_LENGTH;
+    }
+    if (stimuli < 1) {
+        return NBACK_ERROR_STIMULI;
+    }
+    if (n < 1 || n >= size) {
+        return NBACK_ERROR_N;
     }
 
-    // Calculate number of matches needed based on matchPercentage
-    int matches = (int) size * matchPercentage / 100;
-
-    // Fill in the specified number of matches into the nBackString
-    for(int i = 0; i<matches; i++){
-        fillInAMatch(nBackString, size, combinations, nback);
+    int possibleMatches = size - n;
+    if (matches < 0 || matches > possibleMatches) {
+        return NBACK_ERROR_MATCHES;
     }
 
-    // Fill in the remaining empty elements in nBackString
-    fillInAllEmpty(nBackString, size, combinations, nback);
-
+    /* A non-match must be able to differ from the event n steps back. */
+    int nonMatches = possibleMatches - matches;
+    if (nonMatches > 0 && stimuli < 2) {
+        return NBACK_ERROR_STIMULI;
+    }
+    return NULL;
 }
 
-// Function to fill in a match (value and corresponding nBackString elements)
-void fillInAMatch(int nBackString[], int size, int combinations, int nback){
-    // Generate a random value for the match
-    int value = 1 + rand() % combinations;
+/* Pick `matches` different indices from n .. size-1. For 2-back and 20 events that is events 3..20. */
+static void choose_match_positions(int isMatch[], int size, int n, int matches,
+                                   unsigned int *seed) {
+    int candidateCount = size - n;
+    int candidates[CONTENT_MAX_SIZE];
+    for (int i = 0; i < candidateCount; i++) {
+        candidates[i] = n + i;
+    }
 
-    int test = 0;
-    // Continue trying to find a valid position until one is found
-    while(test == 0){
-        // Generate a random position in the nBackString
-        int possition = rand() % size;
+    for (int i = 0; i < matches; i++) {
+        int remaining = candidateCount - i;
+        int pick = next_from_seed(seed) % remaining;
+        int from = i + pick;
+        int chosen = candidates[from];
+        candidates[from] = candidates[i];
+        candidates[i] = chosen;
+        isMatch[chosen] = 1;
+    }
+}
 
-        // Check if the current and n-back positions are within the bounds
-        // and if both positions are currently empty
-        if((possition+nback < size) && nBackString[possition]== 0 && nBackString[possition+nback] == 0){
-            // Fill in the match value for both positions
-            nBackString[possition] = value;
-            nBackString[possition+nback] = value;
-            test = 1;  // Set the test flag to exit the loop
+/* A value in 1..stimuli that is not `forbidden`. Requires stimuli >= 2. */
+static int stimulus_except(unsigned int *seed, int stimuli, int forbidden) {
+    int choice = next_from_seed(seed) % (stimuli - 1);
+    int value = choice + 1;
+    if (value >= forbidden) {
+        value += 1;
+    }
+    return value;
+}
+
+static void write_sequence(int content[], int size, int stimuli, int n,
+                           int matches, unsigned int seed) {
+    int isMatch[CONTENT_MAX_SIZE] = {0};
+    choose_match_positions(isMatch, size, n, matches, &seed);
+
+    for (int i = 0; i < size; i++) {
+        if (i >= n && isMatch[i]) {
+            content[i] = content[i - n];
+        } else if (i >= n) {
+            content[i] = stimulus_except(&seed, stimuli, content[i - n]);
+        } else {
+            content[i] = 1 + (next_from_seed(&seed) % stimuli);
         }
     }
 }
 
-// Function to fill in all empty elements in nBackString
-void fillInAllEmpty(int nBackString[], int size, int combinations, int nback){
-    for(int i = 0; i< size; i++){
-        // Check if the current element is empty
-        if(nBackString[i] == 0){
-            int test = 0;
-            int foo, bar;
-            while(test == 0){
-                // Generate a random value for the empty element
-                int value = 1 + rand() % combinations;
+const char *nback_create(int size, int stimuli, int n, int matches,
+                         unsigned int seed, Nback *out) {
+    *out = NULL;
 
-                // Initialize foo and bar flags to 0
-                foo = 0;
-                bar = 0;
-
-                // Check if the previous n-back element is different from
-                // the current value
-                if(i-nback > 0){
-                    if (nBackString[i-nback] != value){
-                        foo = 1;
-                    }
-                }else{
-                    foo = 1;
-                }
-
-                // Check if the next n-back element is different from the
-                // current value
-                if(i+nback < size){
-                    if(nBackString[i+nback] != value){
-                        bar = 1;
-                    }
-                }else{
-                    bar = 1;
-                }
-
-                // If both foo and bar flags are 1, it means the value is different
-                // from the previous and next n-back elements, so we can fill in the
-                // current element
-                if(foo == 1 && bar == 1){
-                    test = 1;  // Set the test flag to exit the loop
-                    nBackString[i] = value;  // Fill in the value in the current empty element
-                }
-            }
-        }
-
+    const char *error = check_input(size, stimuli, n, matches);
+    if (error != NULL) {
+        return error;
     }
+
+    Nback sequence = malloc(sizeof(*sequence));
+    if (sequence == NULL) {
+        return NBACK_ERROR_ALLOCATION;
+    }
+
+    sequence->size = size;
+    write_sequence(sequence->content, size, stimuli, n, matches, seed);
+    *out = sequence;
+    return NULL;
+}
+
+void nback_free(Nback sequence) {
+    free(sequence);
+}
+
+int nback_length(Nback sequence) {
+    return sequence->size;
+}
+
+const int *nback_values(Nback sequence) {
+    return sequence->content;
 }
