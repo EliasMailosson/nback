@@ -8,13 +8,16 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import mobappdev.example.nback_cimpl.GameApplication
 import mobappdev.example.nback_cimpl.NBackGeneration
+import mobappdev.example.nback_cimpl.data.HighScoreStore
+import mobappdev.example.nback_cimpl.data.SaveResult
 import mobappdev.example.nback_cimpl.game.BasicRound
 import mobappdev.example.nback_cimpl.game.NBackRound
 import mobappdev.example.nback_cimpl.game.NativeSequenceGenerator
@@ -56,7 +59,7 @@ interface GameViewModel {
 }
 
 class GameVM(
-    highscore: Flow<Int>,
+    private val highScores: HighScoreStore,
     private val generator: SequenceGenerator = NativeSequenceGenerator(),
     private val pause: Pause = RealPause(),
     private val gameScope: CoroutineScope? = null,
@@ -155,7 +158,19 @@ class GameVM(
                 }
                 if (token == roundToken) {
                     round = played
-                    publish()
+                    if (played.phase == RoundPhase.Finished) {
+                        val result = withContext(NonCancellable) {
+                            highScores.saveIfHigher(played.score)
+                        }
+                        if (token == roundToken) {
+                            note = when (result) {
+                                SaveResult.Saved -> "Nytt rekord"
+                                SaveResult.Unchanged -> null
+                                SaveResult.Failed -> "Kunde inte spara rekordet"
+                            }
+                        }
+                    }
+                    if (token == roundToken) publish()
                 }
             } finally {
                 if (token == roundToken && round.phase == RoundPhase.Playing) {
@@ -203,14 +218,14 @@ class GameVM(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application = (this[APPLICATION_KEY] as GameApplication)
-                GameVM(application.userPreferencesRespository.highscore)
+                GameVM(application.userPreferencesRespository)
             }
         }
     }
 
     init {
         scope.launch {
-            highscore.collect { _highscore.value = it }
+            highScores.highscore.collect { _highscore.value = it }
         }
     }
 }

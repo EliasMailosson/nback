@@ -11,6 +11,17 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
+enum class SaveResult {
+    Saved,
+    Unchanged,
+    Failed,
+}
+
+interface HighScoreStore {
+    val highscore: Flow<Int>
+    suspend fun saveIfHigher(score: Int): SaveResult
+}
+
 /**
  * This repository provides a way to interact with the DataStore api,
  * with this API you can save key:value pairs
@@ -28,13 +39,13 @@ import java.io.IOException
 
 class UserPreferencesRepository (
     private val dataStore: DataStore<Preferences>
-){
+) : HighScoreStore {
     private companion object {
         val HIGHSCORE = intPreferencesKey("highscore")
         const val TAG = "UserPreferencesRepo"
     }
 
-    val highscore: Flow<Int> = dataStore.data
+    override val highscore: Flow<Int> = dataStore.data
         .catch {
             if (it is IOException) {
                 Log.e(TAG, "Error reading preferences", it)
@@ -47,9 +58,20 @@ class UserPreferencesRepository (
             preferences[HIGHSCORE] ?: 0
         }
 
-    suspend fun saveHighScore(score: Int) {
-        dataStore.edit { preferences ->
-            preferences[HIGHSCORE] = score
+    override suspend fun saveIfHigher(score: Int): SaveResult {
+        return try {
+            var wrote = false
+            dataStore.edit { preferences ->
+                val current = preferences[HIGHSCORE] ?: 0
+                wrote = score > current
+                if (wrote) {
+                    preferences[HIGHSCORE] = score
+                }
+            }
+            if (wrote) SaveResult.Saved else SaveResult.Unchanged
+        } catch (error: IOException) {
+            Log.e(TAG, "Error writing preferences", error)
+            SaveResult.Failed
         }
     }
 }
