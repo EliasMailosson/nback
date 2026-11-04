@@ -78,6 +78,16 @@ fun GameScreen(
                     style = MaterialTheme.typography.titleLarge
                 )
             }
+            Text(
+                text = "Rätt: ${state.correctPresses}",
+                style = MaterialTheme.typography.titleLarge
+            )
+            val canPress = state.phase == RoundPhase.Playing &&
+                !state.answered &&
+                state.eventNumber > vm.nBack
+            Button(onClick = vm::checkMatch, enabled = canPress) {
+                Text("Match")
+            }
             if (state.message != null) {
                 Text(text = state.message ?: "", style = MaterialTheme.typography.bodyLarge)
             }
