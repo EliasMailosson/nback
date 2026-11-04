@@ -1,25 +1,26 @@
 #include <stdlib.h>
 #include "nback.h"
 
-#define CONTENT_MAX_SIZE 100
+_Static_assert(NBACK_MAX_STIMULI - 1 == 0x7FFF, "random step keeps 15 bits");
 
 struct nback_type {
-    int content[CONTENT_MAX_SIZE];
+    int content[NBACK_MAX_SIZE];
     int size;
 };
 
 /* Next value from the seed. The low bits of this step alternate, so the
-   returned value keeps the higher bits. The same seed still gives the same series. */
+   returned value keeps the higher 15 bits. NBACK_MAX_STIMULI matches that width. */
 static unsigned int next_from_seed(unsigned int *seed) {
     *seed = (*seed * 1664525u) + 1013904223u;
     return (*seed >> 16) & 0x7FFFu;
 }
 
 static const char *check_input(int size, int stimuli, int n, int matches) {
-    if (size < 1 || size > CONTENT_MAX_SIZE) {
+    if (size < 1 || size > NBACK_MAX_SIZE) {
         return NBACK_ERROR_LENGTH;
     }
-    if (stimuli < 1) {
+    /* Above the 15-bit step the modulo repeats a shorter range. */
+    if (stimuli < 1 || stimuli > NBACK_MAX_STIMULI) {
         return NBACK_ERROR_STIMULI;
     }
     if (n < 1 || n >= size) {
@@ -31,7 +32,8 @@ static const char *check_input(int size, int stimuli, int n, int matches) {
         return NBACK_ERROR_MATCHES;
     }
 
-    /* A non-match must be able to differ from the event n steps back. */
+    /* A non-match has to differ from the event n steps back.
+       stimulus_except divides by stimuli - 1, so this also stops a division by zero. */
     int nonMatches = possibleMatches - matches;
     if (nonMatches > 0 && stimuli < 2) {
         return NBACK_ERROR_STIMULI;
@@ -43,7 +45,7 @@ static const char *check_input(int size, int stimuli, int n, int matches) {
 static void choose_match_positions(int isMatch[], int size, int n, int matches,
                                    unsigned int *seed) {
     int candidateCount = size - n;
-    int candidates[CONTENT_MAX_SIZE];
+    int candidates[NBACK_MAX_SIZE];
     for (int i = 0; i < candidateCount; i++) {
         candidates[i] = n + i;
     }
@@ -71,7 +73,7 @@ static int stimulus_except(unsigned int *seed, int stimuli, int forbidden) {
 
 static void write_sequence(int content[], int size, int stimuli, int n,
                            int matches, unsigned int seed) {
-    int isMatch[CONTENT_MAX_SIZE] = {0};
+    int isMatch[NBACK_MAX_SIZE] = {0};
     choose_match_positions(isMatch, size, n, matches, &seed);
 
     for (int i = 0; i < size; i++) {
