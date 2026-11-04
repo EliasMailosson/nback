@@ -1,5 +1,6 @@
 package mobappdev.example.nback_cimpl.ui.screens
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,12 +15,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import mobappdev.example.nback_cimpl.game.PressFeedback
 import mobappdev.example.nback_cimpl.game.RoundPhase
 import mobappdev.example.nback_cimpl.ui.viewmodels.FakeVM
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameType
@@ -96,6 +99,7 @@ fun GameScreen(
             Button(onClick = vm::checkMatch, enabled = canPress) {
                 Text("Match")
             }
+            WrongPressFeedback(wrong = state.feedback == PressFeedback.Wrong)
             if (state.message != null) {
                 Text(text = state.message ?: "", style = MaterialTheme.typography.bodyLarge)
             }
@@ -108,6 +112,18 @@ fun GameScreen(
             }
         }
     }
+}
+
+@Composable
+private fun WrongPressFeedback(wrong: Boolean) {
+    // Reads the round state only. It does not change the timer or the score.
+    val scale by animateFloatAsState(targetValue = if (wrong) 0.94f else 1f)
+    Text(
+        text = if (wrong) "Inte en match" else "",
+        color = MaterialTheme.colorScheme.error,
+        style = MaterialTheme.typography.titleLarge,
+        modifier = Modifier.scale(scale)
+    )
 }
 
 private fun modeLabel(gameType: GameType): String {

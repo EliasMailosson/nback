@@ -12,6 +12,7 @@ import mobappdev.example.nback_cimpl.NBackGeneration
 import mobappdev.example.nback_cimpl.game.BasicRound
 import mobappdev.example.nback_cimpl.game.NBackRound
 import mobappdev.example.nback_cimpl.game.Pause
+import mobappdev.example.nback_cimpl.game.PressFeedback
 import mobappdev.example.nback_cimpl.game.RoundPhase
 import mobappdev.example.nback_cimpl.game.SequenceGenerator
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameVM
@@ -97,18 +98,10 @@ class MatchResponseTest {
     fun aCorrectPressSurvivesTheBlankStep() = runBlocking {
         val events = listOf(4, 7, 4) + List(BasicRound.EVENT_COUNT - 3) { 8 }
         val pause = SteppedPause()
-        val vm = GameVM(
-            highscore = MutableStateFlow(0),
-            generator = SequenceGenerator { _, _, _, _, _ -> NBackGeneration.Ok(events.toIntArray()) },
-            pause = pause,
-            gameScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        )
+        val vm = gameVm(events, pause)
 
         vm.startGame()
-        pause.step()
-        pause.step()
-        pause.step()
-        pause.step()
+        repeat(4) { pause.step() }
         assertEquals(3, vm.gameState.value.eventNumber)
         assertTrue(vm.gameState.value.stimulusVisible)
 
@@ -123,6 +116,54 @@ class MatchResponseTest {
         assertTrue(vm.gameState.value.answered)
         vm.abortRound()
     }
+
+    @Test
+    fun onlyAWrongFirstPressAsksForFeedback() {
+        val warmup = NBackRound(listOf(1, 2, 3, 2)).start().press()
+        assertEquals(PressFeedback.None, warmup.feedback)
+
+        val wrong = warmup.closeEvent().closeEvent().press()
+        assertEquals(PressFeedback.Wrong, wrong.feedback)
+        assertEquals(wrong, wrong.press())
+
+        val next = wrong.closeEvent()
+        assertEquals(PressFeedback.None, next.feedback)
+
+        val correct = next.press()
+        assertEquals(PressFeedback.None, correct.feedback)
+        assertEquals(1, correct.correctPresses)
+        assertEquals(1, correct.wrongPresses)
+    }
+
+    @Test
+    fun aWrongPressStaysThroughTheBlankStep() = runBlocking {
+        val events = listOf(1, 2, 3) + List(BasicRound.EVENT_COUNT - 3) { 8 }
+        val pause = SteppedPause()
+        val vm = gameVm(events, pause)
+
+        vm.startGame()
+        repeat(4) { pause.step() }
+        assertEquals(3, vm.gameState.value.eventNumber)
+        vm.checkMatch()
+        assertEquals(PressFeedback.Wrong, vm.gameState.value.feedback)
+        assertTrue(vm.gameState.value.answered)
+
+        pause.step()
+        assertFalse(vm.gameState.value.stimulusVisible)
+        assertEquals(PressFeedback.Wrong, vm.gameState.value.feedback)
+        assertTrue(vm.gameState.value.answered)
+        assertEquals(1, vm.gameState.value.wrongPresses)
+        vm.abortRound()
+    }
+}
+
+private fun gameVm(events: List<Int>, pause: Pause): GameVM {
+    return GameVM(
+        highscore = MutableStateFlow(0),
+        generator = SequenceGenerator { _, _, _, _, _ -> NBackGeneration.Ok(events.toIntArray()) },
+        pause = pause,
+        gameScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+    )
 }
 
 private class SteppedPause : Pause {
