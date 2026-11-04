@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +23,7 @@ import mobappdev.example.nback_cimpl.audio.SpeechReady
 import mobappdev.example.nback_cimpl.NBackGeneration
 import mobappdev.example.nback_cimpl.data.HighScoreStore
 import mobappdev.example.nback_cimpl.data.SaveResult
+import mobappdev.example.nback_cimpl.game.AudioLetters
 import mobappdev.example.nback_cimpl.game.BasicRound
 import mobappdev.example.nback_cimpl.game.NBackRound
 import mobappdev.example.nback_cimpl.game.NativeSequenceGenerator
@@ -58,7 +60,6 @@ interface GameViewModel {
     fun startGame()
     fun abortRound()
     fun enterGameScreen()
-    fun prepareAudio()
 
     fun checkMatch()
 }
@@ -94,14 +95,32 @@ class GameVM(
     }
 
     override fun startGame() {
-        if (_gameState.value.gameType != GameType.Visual) {
-            note = "Ljudläget är inte tillgängligt ännu"
-            _gameState.value = _gameState.value.copy(message = note)
-            return
+        when (_gameState.value.gameType) {
+            GameType.Visual -> {
+                job?.cancel()
+                job = scope.launch {
+                    runRound(BasicRound.VISUAL_STIMULI, speakLetters = false)
+                }
+            }
+            GameType.Audio -> {
+                job?.cancel()
+                job = scope.launch {
+                    if (ensureSpeech() != SpeechReady.Ready) {
+                        if (isActive) showMissingVoice()
+                        return@launch
+                    }
+                    if (!isActive) return@launch
+                    runRound(BasicRound.AUDIO_STIMULI, speakLetters = true)
+                }
+            }
+            GameType.AudioVisual -> Unit
         }
+    }
+
+    private suspend fun runRound(stimuli: Int, speakLetters: Boolean) {
         val generated = generator.generate(
             size = BasicRound.EVENT_COUNT,
-            stimuli = BasicRound.VISUAL_STIMULI,
+            stimuli = stimuli,
             nBack = BasicRound.N_BACK,
             matches = BasicRound.MATCH_COUNT,
             seed = System.currentTimeMillis().toInt()
@@ -114,7 +133,7 @@ class GameVM(
                 return
             }
         }
-        begin(events)
+        playRound(events, speakLetters)
     }
 
     override fun abortRound() {
@@ -144,22 +163,24 @@ class GameVM(
         publish()
     }
 
-    override fun prepareAudio() {
-        if (_gameState.value.phase == RoundPhase.Playing) return
-        scope.launch {
-            val speaker = speech ?: speechFactory.create().also { speech = it }
-            when (speaker.prepare()) {
-                SpeechReady.Missing -> {
-                    speaker.shutdown()
-                    if (speech === speaker) speech = null
-                    note = "Ingen röst är tillgänglig. Välj visuellt läge."
-                }
-                SpeechReady.Ready -> {
-                    note = "Rösten är redo"
-                }
-            }
-            _gameState.value = _gameState.value.copy(message = note)
+    private suspend fun ensureSpeech(): SpeechReady {
+        val speaker = speech ?: speechFactory.create().also { speech = it }
+        val result = speaker.prepare()
+        if (result == SpeechReady.Missing) {
+            speaker.shutdown()
+            if (speech === speaker) speech = null
         }
+        return result
+    }
+
+    private fun showMissingVoice() {
+        note = "Ingen röst är tillgänglig. Välj visuellt läge."
+        _gameState.value = _gameState.value.copy(message = note)
+    }
+
+    private fun speakLetter(current: NBackRound) {
+        val letter = AudioLetters.letter(current.shownValue) ?: return
+        speech?.speak(letter)
     }
 
     override fun checkMatch() {
@@ -167,24 +188,31 @@ class GameVM(
         publish()
     }
 
-    private fun begin(events: List<Int>) {
+    private suspend fun playRound(events: List<Int>, speakLetters: Boolean) {
         roundToken += 1
         val token = roundToken
-        job?.cancel()
         round = NBackRound(events).start()
         note = null
         publish()
-        job = scope.launch {
-            try {
-                val played = playFrom(round, pause, latest = { round }) { updated ->
-                    if (token == roundToken) {
-                        round = updated
-                        publish()
+        try {
+            val played = playFrom(
+                    round,
+                    pause,
+                    latest = { round },
+                    publish = { updated ->
+                        if (token == roundToken) {
+                            round = updated
+                            publish()
+                        }
+                    },
+                    onEventStart = { current ->
+                        if (speakLetters) speakLetter(current)
                     }
-                }
+                )
                 if (token == roundToken) {
                     round = played
                     if (played.phase == RoundPhase.Finished) {
+                        if (speakLetters) speech?.stop()
                         val result = withContext(NonCancellable) {
                             highScores.saveIfHigher(played.score)
                         }
@@ -205,7 +233,6 @@ class GameVM(
                     publish()
                 }
             }
-        }
     }
 
     private fun failToStart() {
@@ -307,9 +334,6 @@ class FakeVM: GameViewModel{
     }
 
     override fun enterGameScreen() {
-    }
-
-    override fun prepareAudio() {
     }
 
     override fun checkMatch() {

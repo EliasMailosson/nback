@@ -27,6 +27,14 @@ object BasicRound {
     const val BLANK_MILLIS = 200L
     const val MATCH_COUNT = 6
     const val VISUAL_STIMULI = 9
+    const val AUDIO_STIMULI = 6
+}
+
+/** Generator values 1..6 are these letters, in order. */
+object AudioLetters {
+    val letters = listOf("A", "F", "K", "M", "R", "U")
+
+    fun letter(value: Int): String? = letters.getOrNull(value - 1)
 }
 
 /**
@@ -148,7 +156,9 @@ suspend fun playFrom(
     pause: Pause,
     latest: () -> NBackRound,
     publish: (NBackRound) -> Unit,
+    onEventStart: (NBackRound) -> Unit = {},
 ): NBackRound {
+    onEventStart(started)
     var current = started
     while (current.phase == RoundPhase.Playing && currentCoroutineContext().isActive) {
         pause.wait(BasicRound.SHOW_MILLIS)
@@ -159,6 +169,9 @@ suspend fun playFrom(
         if (!currentCoroutineContext().isActive) break
         current = latest().closeEvent()
         publish(current)
+        if (current.phase == RoundPhase.Playing) {
+            onEventStart(current)
+        }
     }
     return current
 }

@@ -103,8 +103,21 @@ fun GameScreen(
             if (state.message != null) {
                 Text(text = state.message ?: "", style = MaterialTheme.typography.bodyLarge)
             }
-            val shown = if (state.stimulusVisible) state.eventValue else null
-            PositionGrid(position = activeCell(shown))
+            when (state.gameType) {
+                GameType.Visual -> {
+                    val shown = if (state.stimulusVisible) state.eventValue else null
+                    PositionGrid(position = activeCell(shown))
+                }
+                GameType.Audio -> {
+                    if (state.phase == RoundPhase.Playing) {
+                        Text(
+                            text = "Lyssna",
+                            style = MaterialTheme.typography.headlineMedium
+                        )
+                    }
+                }
+                GameType.AudioVisual -> Unit
+            }
             if (state.phase != RoundPhase.Playing) {
                 Button(onClick = vm::startGame) {
                     Text(if (state.phase == RoundPhase.Finished) "Ny runda" else "Starta runda")

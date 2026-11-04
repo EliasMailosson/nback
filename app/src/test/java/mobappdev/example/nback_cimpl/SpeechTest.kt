@@ -35,7 +35,8 @@ class SpeechTest {
         val speech = FakeSpeech(ready = SpeechReady.Missing)
         val vm = viewModel(speech)
 
-        vm.prepareAudio()
+        vm.setGameType(GameType.Audio)
+        vm.startGame()
 
         assertEquals(SpeechReady.Missing, speech.prepared)
         assertTrue(speech.spoken.isEmpty())
@@ -54,21 +55,19 @@ class SpeechTest {
         val speech = FakeSpeech(ready = SpeechReady.Ready)
         val vm = viewModel(speech)
 
-        vm.prepareAudio()
-
-        assertEquals(SpeechReady.Ready, speech.prepared)
+        vm.setGameType(GameType.Audio)
         assertTrue(speech.spoken.isEmpty())
-        assertEquals("Rösten är redo", vm.gameState.value.message)
-        assertEquals(RoundPhase.Ready, vm.gameState.value.phase)
+
+        vm.startGame()
+        assertEquals(20, speech.spoken.size)
+        assertEquals(RoundPhase.Finished, vm.gameState.value.phase)
     }
 
     @Test
     fun abortAndClearStopTheVoice() {
         val speech = FakeSpeech(ready = SpeechReady.Ready)
         val vm = viewModel(speech, pause = FrozenPause())
-        vm.prepareAudio()
-
-        vm.setGameType(GameType.Visual)
+        vm.setGameType(GameType.Audio)
         vm.startGame()
         vm.abortRound()
         assertEquals(RoundPhase.Aborted, vm.gameState.value.phase)
