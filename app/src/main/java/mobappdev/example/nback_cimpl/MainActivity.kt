@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
                                 vm = gameViewModel,
                                 onStartVisual = {
                                     gameViewModel.setGameType(GameType.Visual)
+                                    gameViewModel.enterGameScreen()
                                     navController.navigate(GAME_ROUTE) {
                                         launchSingleTop = true
                                     }

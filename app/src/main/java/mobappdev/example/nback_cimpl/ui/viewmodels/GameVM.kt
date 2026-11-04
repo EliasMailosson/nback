@@ -1,22 +1,28 @@
 package mobappdev.example.nback_cimpl.ui.viewmodels
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import mobappdev.example.nback_cimpl.GameApplication
 import mobappdev.example.nback_cimpl.NBackGeneration
-import mobappdev.example.nback_cimpl.NBackHelper
-import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
+import mobappdev.example.nback_cimpl.game.BasicRound
+import mobappdev.example.nback_cimpl.game.NBackRound
+import mobappdev.example.nback_cimpl.game.NativeSequenceGenerator
+import mobappdev.example.nback_cimpl.game.Pause
+import mobappdev.example.nback_cimpl.game.RealPause
+import mobappdev.example.nback_cimpl.game.RoundPhase
+import mobappdev.example.nback_cimpl.game.SequenceGenerator
+import mobappdev.example.nback_cimpl.game.playFrom
 
 /**
  * This is the GameViewModel.
@@ -43,13 +49,20 @@ interface GameViewModel {
 
     fun setGameType(gameType: GameType)
     fun startGame()
+    fun abortRound()
+    fun enterGameScreen()
 
     fun checkMatch()
 }
 
 class GameVM(
-    private val userPreferencesRepository: UserPreferencesRepository
-): GameViewModel, ViewModel() {
+    highscore: Flow<Int>,
+    private val generator: SequenceGenerator = NativeSequenceGenerator(),
+    private val pause: Pause = RealPause(),
+    private val gameScope: CoroutineScope? = null,
+) : GameViewModel, ViewModel() {
+    private val scope: CoroutineScope = gameScope ?: viewModelScope
+
     private val _gameState = MutableStateFlow(GameState())
     override val gameState: StateFlow<GameState>
         get() = _gameState.asStateFlow()
@@ -62,83 +75,139 @@ class GameVM(
     override val highscore: StateFlow<Int>
         get() = _highscore
 
-    // nBack is currently hardcoded
-    override val nBack: Int = 2
+    override val nBack: Int = BasicRound.N_BACK
 
-    private var job: Job? = null  // coroutine job for the game event
-    private val eventInterval: Long = 2000L  // 2000 ms (2s)
-
-    private val nBackHelper = NBackHelper()  // Helper that generate the event array
-    private var events = emptyArray<Int>()  // Array with all events
+    private var round = NBackRound(emptyList())
+    private var job: Job? = null
+    private var roundToken = 0
+    private var note: String? = null
 
     override fun setGameType(gameType: GameType) {
-        // update the gametype in the gamestate
+        if (_gameState.value.phase == RoundPhase.Playing) return
         _gameState.value = _gameState.value.copy(gameType = gameType)
     }
 
     override fun startGame() {
-        job?.cancel()  // Cancel any existing game loop
-
-        // 20 events, 2-back and exactly 6 matches. Values are 1..9.
-        // Todo Higher Grade: currently the size etc. are hardcoded, make these based on user input
-        val generated = nBackHelper.generateNBackString(20, 9, nBack, 6, System.currentTimeMillis().toInt())
-        events = when (generated) {
-            is NBackGeneration.Ok -> generated.sequence.toTypedArray()
+        if (_gameState.value.gameType != GameType.Visual) {
+            note = "Ljudläget är inte tillgängligt ännu"
+            _gameState.value = _gameState.value.copy(message = note)
+            return
+        }
+        val generated = generator.generate(
+            size = BasicRound.EVENT_COUNT,
+            stimuli = BasicRound.VISUAL_STIMULI,
+            nBack = BasicRound.N_BACK,
+            matches = BasicRound.MATCH_COUNT,
+            seed = System.currentTimeMillis().toInt()
+        )
+        val events = when (generated) {
+            is NBackGeneration.Ok -> generated.sequence.toList()
             is NBackGeneration.Error -> {
-                Log.d("GameVM", "Could not generate sequence: ${generated.name}")
-                emptyArray()
+                // A failed call must not run an empty round.
+                failToStart()
+                return
             }
         }
-        Log.d("GameVM", "The following sequence was generated: ${events.contentToString()}")
+        begin(events)
+    }
 
-        job = viewModelScope.launch {
-            when (gameState.value.gameType) {
-                GameType.Audio -> runAudioGame()
-                GameType.AudioVisual -> runAudioVisualGame()
-                GameType.Visual -> runVisualGame(events)
-            }
-            // Todo: update the highscore
+    override fun abortRound() {
+        if (round.phase != RoundPhase.Playing) {
+            job?.cancel()
+            job = null
+            note = null
+            publish()
+            return
         }
+        // Bump the token first so the cancelled job cannot publish over the abort.
+        roundToken += 1
+        job?.cancel()
+        job = null
+        round = round.abort()
+        note = null
+        publish()
+    }
+
+    override fun enterGameScreen() {
+        if (round.phase == RoundPhase.Playing) return
+        job?.cancel()
+        job = null
+        round = NBackRound(emptyList())
+        note = null
+        publish()
     }
 
     override fun checkMatch() {
-        /**
-         * Todo: This function should check if there is a match when the user presses a match button
-         * Make sure the user can only register a match once for each event.
-         */
-    }
-    private fun runAudioGame() {
-        // Todo: Make work for Basic grade
+        // Match presses are added when the round rules are connected.
     }
 
-    private suspend fun runVisualGame(events: Array<Int>){
-        // Todo: Replace this code for actual game code
-        for (value in events) {
-            _gameState.value = _gameState.value.copy(eventValue = value)
-            delay(eventInterval)
+    private fun begin(events: List<Int>) {
+        roundToken += 1
+        val token = roundToken
+        job?.cancel()
+        round = NBackRound(events).start()
+        note = null
+        publish()
+        job = scope.launch {
+            try {
+                val played = playFrom(round, pause) { updated ->
+                    if (token == roundToken) {
+                        round = updated
+                        publish()
+                    }
+                }
+                if (token == roundToken) {
+                    round = played
+                    publish()
+                }
+            } finally {
+                if (token == roundToken && round.phase == RoundPhase.Playing) {
+                    round = round.abort()
+                    publish()
+                }
+            }
         }
-
     }
 
-    private fun runAudioVisualGame(){
-        // Todo: Make work for Higher grade
+    private fun failToStart() {
+        roundToken += 1
+        job?.cancel()
+        job = null
+        round = NBackRound(emptyList())
+        note = "Kunde inte starta rundan"
+        _gameState.value = _gameState.value.copy(
+            phase = RoundPhase.Ready,
+            eventValue = -1,
+            eventNumber = 0,
+            stimulusVisible = false,
+            message = note,
+        )
+    }
+
+    private fun publish() {
+        _gameState.value = GameState(
+            gameType = _gameState.value.gameType,
+            phase = round.phase,
+            eventValue = round.shownValue,
+            eventNumber = round.eventNumber,
+            eventCount = if (round.events.isEmpty()) BasicRound.EVENT_COUNT else round.eventCount,
+            stimulusVisible = round.stimulusVisible,
+            message = note,
+        )
     }
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application = (this[APPLICATION_KEY] as GameApplication)
-                GameVM(application.userPreferencesRespository)
+                GameVM(application.userPreferencesRespository.highscore)
             }
         }
     }
 
     init {
-        // Code that runs during creation of the vm
-        viewModelScope.launch {
-            userPreferencesRepository.highscore.collect {
-                _highscore.value = it
-            }
+        scope.launch {
+            highscore.collect { _highscore.value = it }
         }
     }
 }
@@ -150,16 +219,14 @@ enum class GameType{
     AudioVisual
 }
 
-/** Where a round is. Later issues add the other phases from NB-01. */
-enum class RoundPhase {
-    Ready,
-}
-
 data class GameState(
-    // You can use this state to push values from the VM to your UI.
-    val gameType: GameType = GameType.Visual,  // Type of the game
+    val gameType: GameType = GameType.Visual,
     val phase: RoundPhase = RoundPhase.Ready,
-    val eventValue: Int = -1  // The value of the array string
+    val eventValue: Int = -1,
+    val eventNumber: Int = 0,
+    val eventCount: Int = BasicRound.EVENT_COUNT,
+    val stimulusVisible: Boolean = false,
+    val message: String? = null,
 )
 
 class FakeVM: GameViewModel{
@@ -176,6 +243,12 @@ class FakeVM: GameViewModel{
     }
 
     override fun startGame() {
+    }
+
+    override fun abortRound() {
+    }
+
+    override fun enterGameScreen() {
     }
 
     override fun checkMatch() {
