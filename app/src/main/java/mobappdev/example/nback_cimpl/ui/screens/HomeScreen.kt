@@ -1,10 +1,8 @@
 package mobappdev.example.nback_cimpl.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,130 +11,104 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import mobappdev.example.nback_cimpl.R
 import mobappdev.example.nback_cimpl.ui.viewmodels.FakeVM
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
 
 /**
- * This is the Home screen composable
- *
- * Currently this screen shows the saved highscore
- * It also contains a button which can be used to show that the C-integration works
- * Furthermore it contains two buttons that you can use to start a game
- *
- * Date: 25-08-2023
- * Version: Version 1.0
- * Author: Yeetivity
- *
+ * Start screen. Shows the fixed round and the saved record.
+ * Visual mode opens the game. Audio stays closed until the letter round exists.
  */
+
+private const val EVENTS_PER_ROUND = 20
+private const val SECONDS_PER_EVENT = 2
 
 @Composable
 fun HomeScreen(
-    vm: GameViewModel
+    vm: GameViewModel,
+    onStartVisual: () -> Unit
 ) {
-    val highscore by vm.highscore.collectAsState()  // Highscore is its own StateFlow
-    val gameState by vm.gameState.collectAsState()
-    val snackBarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val highscore by vm.highscore.collectAsState()
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackBarHostState) }
-    ) {
+    Scaffold { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(it),
-            verticalArrangement = Arrangement.Center,
+                .padding(padding)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                modifier = Modifier.padding(32.dp),
-                text = "High-Score = $highscore",
+                text = "Rekord: $highscore",
                 style = MaterialTheme.typography.headlineLarge
             )
-            // Todo: You'll probably want to change this "BOX" part of the composable
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    if (gameState.eventValue != -1) {
-                        Text(
-                            modifier = Modifier.fillMaxWidth(),
-                            text = "Current eventValue is: ${gameState.eventValue}",
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                    Button(onClick = vm::startGame) {
-                        Text(text = "Generate eventValues")
-                    }
-                }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "${vm.nBack}-back",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Text(
+                    text = "$EVENTS_PER_ROUND händelser",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    text = "$SECONDS_PER_EVENT sekunder per händelse",
+                    style = MaterialTheme.typography.headlineSmall
+                )
             }
-            Text(
-                modifier = Modifier.padding(16.dp),
-                text = "Start Game".uppercase(),
-                style = MaterialTheme.typography.displaySmall
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(onClick = {
-                    // Todo: change this button behaviour
-                    scope.launch {
-                        snackBarHostState.showSnackbar(
-                            message = "Hey! you clicked the audio button"
-                        )
-                    }
-                }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.sound_on),
-                        contentDescription = "Sound",
-                        modifier = Modifier
-                            .height(48.dp)
-                            .aspectRatio(3f / 2f)
-                    )
-                }
-                Button(
-                    onClick = {
-                        // Todo: change this button behaviour
-                        scope.launch {
-                            snackBarHostState.showSnackbar(
-                                message = "Hey! you clicked the visual button",
-                                duration = SnackbarDuration.Short
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    text = "Välj läge",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Button(onClick = onStartVisual) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.visual),
+                                contentDescription = null,
+                                modifier = Modifier.height(48.dp)
+                            )
+                            Text(
+                                modifier = Modifier.padding(start = 8.dp),
+                                text = "Visuellt"
                             )
                         }
-                    }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.visual),
-                        contentDescription = "Visual",
-                        modifier = Modifier
-                            .height(48.dp)
-                            .aspectRatio(3f / 2f)
-                    )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Button(onClick = {}, enabled = false) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.sound_on),
+                                contentDescription = null,
+                                modifier = Modifier.height(48.dp)
+                            )
+                            Text(
+                                modifier = Modifier.padding(start = 8.dp),
+                                text = "Ljud"
+                            )
+                        }
+                        Text(
+                            modifier = Modifier.padding(top = 8.dp),
+                            text = "Inte tillgängligt ännu",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
         }
@@ -146,8 +118,7 @@ fun HomeScreen(
 @Preview
 @Composable
 fun HomeScreenPreview() {
-    // Since I am injecting a VM into my homescreen that depends on Application context, the preview doesn't work.
-    Surface(){
-        HomeScreen(FakeVM())
+    Surface {
+        HomeScreen(vm = FakeVM(), onStartVisual = {})
     }
 }

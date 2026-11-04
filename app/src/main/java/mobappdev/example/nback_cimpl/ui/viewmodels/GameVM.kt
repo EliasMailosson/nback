@@ -150,9 +150,15 @@ enum class GameType{
     AudioVisual
 }
 
+/** Where a round is. Later issues add the other phases from NB-01. */
+enum class RoundPhase {
+    Ready,
+}
+
 data class GameState(
     // You can use this state to push values from the VM to your UI.
     val gameType: GameType = GameType.Visual,  // Type of the game
+    val phase: RoundPhase = RoundPhase.Ready,
     val eventValue: Int = -1  // The value of the array string
 )
 
