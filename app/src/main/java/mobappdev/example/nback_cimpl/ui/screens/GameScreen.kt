@@ -52,6 +52,7 @@ fun GameScreen(
                 text = phaseLabel(state.phase),
                 style = MaterialTheme.typography.headlineLarge
             )
+            PositionGrid(position = activeCell(state.eventValue))
         }
     }
 }
