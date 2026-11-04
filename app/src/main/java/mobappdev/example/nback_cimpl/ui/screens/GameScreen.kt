@@ -82,6 +82,14 @@ fun GameScreen(
                 text = "Rätt: ${state.correctPresses}",
                 style = MaterialTheme.typography.titleLarge
             )
+            if (state.phase == RoundPhase.Finished) {
+                Text(text = "Fel: ${state.wrongPresses}", style = MaterialTheme.typography.titleLarge)
+                Text(text = "Missade: ${state.missedMatches}", style = MaterialTheme.typography.titleLarge)
+                Text(text = "Poäng: ${state.score}", style = MaterialTheme.typography.headlineMedium)
+            }
+            if (state.phase == RoundPhase.Aborted) {
+                Text(text = "Inget resultat", style = MaterialTheme.typography.titleLarge)
+            }
             val canPress = state.phase == RoundPhase.Playing &&
                 !state.answered &&
                 state.eventNumber > vm.nBack
