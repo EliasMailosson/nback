@@ -16,10 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import mobappdev.example.nback_cimpl.game.RoundPhase
 import mobappdev.example.nback_cimpl.ui.viewmodels.FakeVM
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameType
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
-import mobappdev.example.nback_cimpl.ui.viewmodels.RoundPhase
 
 /**
  * Game screen. It shows the shared round state and can be left.
@@ -31,6 +35,22 @@ fun GameScreen(
     onLeave: () -> Unit
 ) {
     val state by vm.gameState.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // The ViewModel survives rotation, so this screen stops the round itself.
+    // ON_STOP is the app going to the background. onDispose is leaving or recreation.
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                vm.abortRound()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            vm.abortRound()
+        }
+    }
 
     Scaffold { padding ->
         Column(
@@ -52,7 +72,22 @@ fun GameScreen(
                 text = phaseLabel(state.phase),
                 style = MaterialTheme.typography.headlineLarge
             )
-            PositionGrid(position = activeCell(state.eventValue))
+            if (state.eventNumber > 0) {
+                Text(
+                    text = "Händelse ${state.eventNumber} av ${state.eventCount}",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+            if (state.message != null) {
+                Text(text = state.message ?: "", style = MaterialTheme.typography.bodyLarge)
+            }
+            val shown = if (state.stimulusVisible) state.eventValue else null
+            PositionGrid(position = activeCell(shown))
+            if (state.phase != RoundPhase.Playing) {
+                Button(onClick = vm::startGame) {
+                    Text(if (state.phase == RoundPhase.Finished) "Ny runda" else "Starta runda")
+                }
+            }
         }
     }
 }
@@ -68,6 +103,9 @@ private fun modeLabel(gameType: GameType): String {
 private fun phaseLabel(phase: RoundPhase): String {
     return when (phase) {
         RoundPhase.Ready -> "Redo"
+        RoundPhase.Playing -> "Pågår"
+        RoundPhase.Finished -> "Avslutad"
+        RoundPhase.Aborted -> "Avbruten"
     }
 }
 

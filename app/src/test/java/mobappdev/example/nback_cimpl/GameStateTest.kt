@@ -1,8 +1,8 @@
 package mobappdev.example.nback_cimpl
 
+import mobappdev.example.nback_cimpl.game.RoundPhase
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameState
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameType
-import mobappdev.example.nback_cimpl.ui.viewmodels.RoundPhase
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

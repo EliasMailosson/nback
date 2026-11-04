@@ -22,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import mobappdev.example.nback_cimpl.R
+import mobappdev.example.nback_cimpl.game.BasicRound
 import mobappdev.example.nback_cimpl.ui.viewmodels.FakeVM
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
 
@@ -29,9 +30,6 @@ import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
  * Start screen. Shows the fixed round and the saved record.
  * Visual mode opens the game. Audio stays closed until the letter round exists.
  */
-
-private const val EVENTS_PER_ROUND = 20
-private const val SECONDS_PER_EVENT = 2
 
 @Composable
 fun HomeScreen(
@@ -59,11 +57,11 @@ fun HomeScreen(
                     style = MaterialTheme.typography.headlineMedium
                 )
                 Text(
-                    text = "$EVENTS_PER_ROUND händelser",
+                    text = "${BasicRound.EVENT_COUNT} händelser",
                     style = MaterialTheme.typography.headlineSmall
                 )
                 Text(
-                    text = "$SECONDS_PER_EVENT sekunder per händelse",
+                    text = "${BasicRound.SECONDS_PER_EVENT} sekunder per händelse",
                     style = MaterialTheme.typography.headlineSmall
                 )
             }
