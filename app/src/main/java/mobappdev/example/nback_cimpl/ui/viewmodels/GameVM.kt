@@ -138,7 +138,8 @@ class GameVM(
     }
 
     override fun checkMatch() {
-        // Match presses are added when the round rules are connected.
+        round = round.press()
+        publish()
     }
 
     private fun begin(events: List<Int>) {
@@ -150,7 +151,7 @@ class GameVM(
         publish()
         job = scope.launch {
             try {
-                val played = playFrom(round, pause) { updated ->
+                val played = playFrom(round, pause, latest = { round }) { updated ->
                     if (token == roundToken) {
                         round = updated
                         publish()
@@ -192,6 +193,8 @@ class GameVM(
             eventNumber = round.eventNumber,
             eventCount = if (round.events.isEmpty()) BasicRound.EVENT_COUNT else round.eventCount,
             stimulusVisible = round.stimulusVisible,
+            answered = round.answered,
+            correctPresses = round.correctPresses,
             message = note,
         )
     }
@@ -226,6 +229,8 @@ data class GameState(
     val eventNumber: Int = 0,
     val eventCount: Int = BasicRound.EVENT_COUNT,
     val stimulusVisible: Boolean = false,
+    val answered: Boolean = false,
+    val correctPresses: Int = 0,
     val message: String? = null,
 )
 

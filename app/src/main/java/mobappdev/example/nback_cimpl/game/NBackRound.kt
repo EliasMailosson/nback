@@ -35,6 +35,9 @@ data class NBackRound(
     val index: Int = 0,
     val phase: RoundPhase = RoundPhase.Ready,
     val stimulusVisible: Boolean = false,
+    val answered: Boolean = false,
+    val correctPresses: Int = 0,
+    val wrongPresses: Int = 0,
 ) {
     val eventCount: Int get() = events.size
 
@@ -55,7 +58,29 @@ data class NBackRound(
             index = 0,
             phase = RoundPhase.Playing,
             stimulusVisible = true,
+            answered = false,
+            correctPresses = 0,
+            wrongPresses = 0,
         )
+    }
+
+    /** Same value as the event n steps back. Warmup events are never matches. */
+    fun isMatch(): Boolean {
+        if (index < nBack || index !in events.indices) return false
+        return events[index] == events[index - nBack]
+    }
+
+    /**
+     * One press for this event, including its blank part.
+     * Presses outside a running event, during warmup, or after the first press do nothing.
+     */
+    fun press(): NBackRound {
+        if (phase != RoundPhase.Playing || index < nBack || answered) return this
+        return if (isMatch()) {
+            copy(answered = true, correctPresses = correctPresses + 1)
+        } else {
+            copy(answered = true, wrongPresses = wrongPresses + 1)
+        }
     }
 
     fun blank(): NBackRound {
@@ -70,7 +95,7 @@ data class NBackRound(
         return if (next >= events.size) {
             copy(phase = RoundPhase.Finished, stimulusVisible = false)
         } else {
-            copy(index = next, stimulusVisible = true)
+            copy(index = next, stimulusVisible = true, answered = false)
         }
     }
 
@@ -93,21 +118,23 @@ class RealPause : Pause {
 /**
  * Plays a round that is already [NBackRound.start]ed.
  * The caller publishes the first lit event before this runs.
+ * [latest] is read after each wait so a press made during the wait is kept.
  */
 suspend fun playFrom(
     started: NBackRound,
     pause: Pause,
+    latest: () -> NBackRound,
     publish: (NBackRound) -> Unit,
 ): NBackRound {
     var current = started
     while (current.phase == RoundPhase.Playing && currentCoroutineContext().isActive) {
         pause.wait(BasicRound.SHOW_MILLIS)
         if (!currentCoroutineContext().isActive) break
-        current = current.blank()
+        current = latest().blank()
         publish(current)
         pause.wait(BasicRound.BLANK_MILLIS)
         if (!currentCoroutineContext().isActive) break
-        current = current.closeEvent()
+        current = latest().closeEvent()
         publish(current)
     }
     return current
